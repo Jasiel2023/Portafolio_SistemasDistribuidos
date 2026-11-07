@@ -1,0 +1,69 @@
+Ejercicio 5. Centro de impresión — Sincronización de procesos
+Objetivo: Utilizar semáforos para establecer un orden determinado de ejecución entre procesos.
+Situación:
+Un centro de impresión tiene tres procesos:
+Diseño
+Revisión
+Impresión
+Para cada documento debe cumplirse obligatoriamente: DISEÑO → REVISIÓN → IMPRESIÓN
+No se puede revisar un documento que todavía no ha sido diseñado y tampoco se puede imprimir antes de que haya sido revisado.
+Procedimiento
+Identifique los procesos participantes.
+Cree un semáforo para cada etapa.
+Permita inicialmente que el proceso de diseño pueda ejecutarse.
+Diseño deberá habilitar a revisión.
+Revisión deberá habilitar a impresión.
+Impresión deberá habilitar nuevamente a diseño.
+Repita el ciclo para 3 documentos.
+Verifique que el orden siempre sea correcto.
+Analice qué ocurre si se elimina uno de los signal().
+Pseudocódigo
+SEMÁFORO turno_diseno = 1 SEMÁFORO turno_revision = 0 SEMÁFORO turno_impresion = 0
+
+
+PROCEDIMIENTO diseno()
+
+
+
+REPETIR 3 VECES
+
+wait(turno_diseno)
+
+escribir("Diseño prepara documento") crear_documento() signal(turno_revision)
+FIN REPETIR
+
+FIN PROCEDIMIENTO
+
+
+PROCEDIMIENTO revision()
+
+REPETIR 3 VECES
+
+wait(turno_revision)
+
+escribir("Revisión verifica documento") revisar_documento() signal(turno_impresion)
+FIN REPETIR
+
+FIN PROCEDIMIENTO
+
+
+PROCEDIMIENTO impresion()
+
+REPETIR 3 VECES
+
+wait(turno_impresion)
+
+escribir("Impresión imprime documento") imprimir_documento() signal(turno_diseno)
+
+
+
+
+FIN REPETIR
+
+FIN PROCEDIMIENTO
+
+
+INICIO
+
+crear_proceso(diseno) crear_proceso(revision) crear_proceso(impresion)
+FIN

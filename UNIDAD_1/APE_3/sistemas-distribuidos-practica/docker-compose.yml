@@ -1,0 +1,54 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_TARGET: http://gateway:3000
+    depends_on:
+      - gateway
+
+  gateway:
+    build:
+      context: .
+      dockerfile: backend/gateway/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      SERVICE_1_URL: http://microservicio-1:3001
+      SERVICE_2_URL: http://microservicio-2:3002
+      SERVICE_3_URL: http://microservicio-3:3003
+      SERVICE_4_URL: http://microservicio-4:3004
+      SERVICE_5_URL: http://microservicio-5:3005
+    depends_on:
+      - microservicio-1
+      - microservicio-2
+      - microservicio-3
+      - microservicio-4
+      - microservicio-5
+
+  microservicio-1:
+    build:
+      context: .
+      dockerfile: backend/microservicios/microservicio-1/Dockerfile
+    expose: ["3001"]
+  microservicio-2:
+    build:
+      context: .
+      dockerfile: backend/microservicios/microservicio-2/Dockerfile
+    expose: ["3002"]
+  microservicio-3:
+    build:
+      context: .
+      dockerfile: backend/microservicios/microservicio-3/Dockerfile
+    expose: ["3003"]
+  microservicio-4:
+    build:
+      context: .
+      dockerfile: backend/microservicios/microservicio-4/Dockerfile
+    expose: ["3004"]
+  microservicio-5:
+    build:
+      context: .
+      dockerfile: backend/microservicios/microservicio-5/Dockerfile
+    expose: ["3005"]

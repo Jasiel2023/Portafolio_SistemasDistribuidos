@@ -1,0 +1,248 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.45;color:#202124;max-width:900px;margin:40px auto;padding:0 28px}h1{color:#123b5d;border-bottom:3px solid #2c7a9b;padding-bottom:8px}h2{color:#185a7d;margin-top:30px}h3{color:#276b80}code,pre{font-family:Consolas,monospace}pre{background:#f1f4f6;padding:14px;border-radius:5px;overflow-wrap:break-word}code{background:#eef1f3;padding:2px 4px;border-radius:3px}table{border-collapse:collapse;width:100%;margin:14px 0}th,td{border:1px solid #aab7c0;padding:7px;text-align:left}th{background:#dcebf1}li{margin:5px 0}</style></head><body>
+<h1>Guia de defensa: Microservicio 1</h1>
+<h2>1. Objetivo del microservicio</h2>
+<p>El Microservicio 1 simula el control de acceso a un estacionamiento con capacidad limitada. El estacionamiento tiene cuatro espacios y se simula la llegada de diez vehiculos al mismo tiempo.</p>
+<p>El problema consiste en controlar el acceso concurrente a un recurso compartido. Los primeros cuatro vehiculos pueden ingresar y los siguientes deben esperar hasta que se libere un espacio.</p>
+<h2>2. Pseudocodigo original</h2>
+<pre>
+SEM&#195;FORO espacios = 4
+
+PROCEDIMIENTO vehiculo(id)
+    escribir(&quot;Veh&#195;&#173;culo &quot;, id, &quot; llega al estacionamiento&quot;)
+    wait(espacios)
+    escribir(&quot;Veh&#195;&#173;culo &quot;, id, &quot; ingresa al estacionamiento&quot;)
+    estacionar(id)
+    esperar_tiempo()
+    escribir(&quot;Veh&#195;&#173;culo &quot;, id, &quot; sale del estacionamiento&quot;)
+    signal(espacios)
+FIN PROCEDIMIENTO
+
+INICIO
+    PARA i = 1 HASTA 10 HACER
+        crear_proceso(vehiculo, i)
+    FIN PARA
+FIN
+</pre>
+<h2>3. Equivalencia con Java</h2>
+<p>El codigo principal se encuentra en:</p>
+<pre>
+backend/microservicios/microservicio-1/src/main/java/edu/ape3/microservicio1/service/ServicioSimulacionEstacionamiento.java
+</pre>
+<h3>Crear el semaforo</h3>
+<p>Pseudocodigo:</p>
+<pre>
+SEM&#195;FORO espacios = 4
+</pre>
+<p>Java:</p>
+<pre>
+Semaphore espacios = new Semaphore(capacidad, true);
+</pre>
+<p>La simulacion se llama con capacidad <code>4</code>, por lo que el semaforo comienza con cuatro permisos. Cada permiso representa un espacio.</p>
+<h3>Crear los procesos</h3>
+<p>Pseudocodigo:</p>
+<pre>
+PARA i = 1 HASTA 10 HACER
+    crear_proceso(vehiculo, i)
+FIN PARA
+</pre>
+<p>Java:</p>
+<pre>
+ExecutorService ejecutor = Executors.newFixedThreadPool(cantidadVehiculos);
+
+for (int id = 1; id &lt;= cantidadVehiculos; id++) {
+    futuros.add(ejecutor.submit(new TareaVehiculo(
+            id, espacios, vehiculosDentro, maximoDentro, eventos)));
+}
+</pre>
+<p><code>ExecutorService</code> administra los hilos y cada <code>TareaVehiculo</code> representa la ejecucion independiente de un vehiculo.</p>
+<h3>Procedimiento del vehiculo</h3>
+<p>El procedimiento del pseudocodigo esta representado por:</p>
+<pre>
+public ResultadoVehiculo call() throws InterruptedException
+</pre>
+<p>Dentro del metodo se ejecutan los siguientes pasos:</p>
+<pre>
+int ocupados = vehiculosDentro.incrementAndGet();
+Thread.sleep(TIEMPO_ESTACIONAMIENTO_MILLIS);
+vehiculosDentro.decrementAndGet();
+</pre>
+<h3>Equivalencia de operaciones</h3>
+<table>
+<tr><th>Pseudocodigo</th><th>Java</th><th>Funcion</th></tr>
+<tr><td>`wait(espacios)`</td><td>`espacios.acquire()`</td><td>Solicita un permiso y espera si no hay espacio</td></tr>
+<tr><td>`estacionar(id)`</td><td>`vehiculosDentro.incrementAndGet()`</td><td>Registra el ingreso</td></tr>
+<tr><td>`esperar_tiempo()`</td><td>`Thread.sleep(200)`</td><td>Simula el tiempo estacionado</td></tr>
+<tr><td>`signal(espacios)`</td><td>`espacios.release()`</td><td>Libera un espacio</td></tr>
+<tr><td>`crear_proceso`</td><td>`ejecutor.submit(...)`</td><td>Ejecuta un vehiculo concurrentemente</td></tr>
+</table>
+<h2>4. Funcionamiento del semaforo</h2>
+<p>Al iniciar la simulacion:</p>
+<pre>
+Permisos disponibles: 4
+</pre>
+<p>Cuando ingresan cuatro vehiculos:</p>
+<pre>
+Permisos disponibles: 0
+</pre>
+<p>El quinto vehiculo ejecuta <code>acquire()</code> y queda esperando. Cuando uno de los cuatro vehiculos sale, ejecuta <code>release()</code> y el quinto puede continuar.</p>
+<p>El semaforo garantiza que nunca haya mas de cuatro vehiculos dentro simultaneamente.</p>
+<p>El parametro <code>true</code> activa una politica de equidad:</p>
+<pre>
+new Semaphore(capacidad, true)
+</pre>
+<p>Esto ayuda a atender los hilos que esperan en un orden justo.</p>
+<h2>5. Patron Modelo-Vista-Controlador</h2>
+<p>La aplicacion utiliza MVC junto con una capa de servicio:</p>
+<pre>
+Cliente o frontend
+        |
+        v
+Controlador
+        |
+        v
+Servicio
+        |
+        v
+Modelo
+        |
+        v
+Respuesta JSON
+</pre>
+<h3>Modelo</h3>
+<p>Se encuentra en:</p>
+<pre>
+model/
+</pre>
+<p>Sus clases son:</p>
+<ul>
+<li>`Vehiculo`: representa un vehiculo del dominio.</li>
+<li>`EstadoEstacionamiento`: representa el estado actual del estacionamiento.</li>
+<li>`ResultadoSimulacion`: contiene el resultado general de la simulacion.</li>
+<li>`ResultadoVehiculo`: contiene el resultado individual de un vehiculo.</li>
+</ul>
+<p>Ejemplo:</p>
+<pre>
+public final class Vehiculo {
+    private final int id;
+}
+</pre>
+<p>El modelo representa los datos y conceptos del problema.</p>
+<h3>Vista</h3>
+<p>Como el proyecto es una API REST, no utiliza una vista HTML tradicional. La vista es la respuesta JSON que recibe el frontend u otro cliente.</p>
+<p>Ejemplo:</p>
+<pre>
+{
+  &quot;capacidad&quot;: 4,
+  &quot;espaciosOcupados&quot;: 1,
+  &quot;espaciosDisponibles&quot;: 3,
+  &quot;vehiculosDentro&quot;: [5],
+  &quot;vehiculosEsperando&quot;: [],
+  &quot;operacionExitosa&quot;: true
+}
+</pre>
+<p>Spring Boot convierte automaticamente los objetos Java en JSON.</p>
+<h3>Controlador</h3>
+<p>Se encuentra en:</p>
+<pre>
+controller/ControladorEstacionamiento.java
+</pre>
+<p>Su responsabilidad es recibir peticiones HTTP, obtener parametros, llamar al servicio y devolver respuestas.</p>
+<p>Ejemplo:</p>
+<pre>
+@PostMapping(&quot;/api/estacionamiento/llegar/{id}&quot;)
+public EstadoEstacionamiento llegar(@PathVariable int id) {
+    return servicioSimulacion.llegarVehiculo(id);
+}
+</pre>
+<p>El controlador no contiene la logica del semaforo.</p>
+<h2>6. Por que existe la capa Service</h2>
+<p>La capa Service se encuentra en:</p>
+<pre>
+service/ServicioSimulacionEstacionamiento.java
+</pre>
+<p>Contiene la logica de negocio:</p>
+<ul>
+<li>Controlar el semaforo.</li>
+<li>Registrar vehiculos dentro y en espera.</li>
+<li>Simular llegadas concurrentes.</li>
+<li>Controlar entradas y salidas.</li>
+<li>Reiniciar el estacionamiento.</li>
+<li>Generar resultados y eventos.</li>
+</ul>
+<p>La capa Service evita colocar esta logica dentro del controlador. Asi, el controlador se mantiene pequeno y la logica puede reutilizarse o probarse independientemente.</p>
+<p>La arquitectura completa es:</p>
+<pre>
+Modelo + Vista + Controlador + Service Layer
+</pre>
+<p>La capa Service no reemplaza MVC. Es una capa adicional para separar la logica de negocio de la comunicacion HTTP.</p>
+<h2>7. Flujo de una simulacion</h2>
+<p>Cuando el cliente solicita:</p>
+<pre>
+GET /api/simular
+</pre>
+<p>ocurre lo siguiente:</p>
+<ol>
+<li>`ControladorEstacionamiento` recibe la solicitud.</li>
+<li>El controlador llama a `simular(4, 10)`.</li>
+<li>El servicio crea un semaforo con cuatro permisos.</li>
+<li>Se crean diez tareas, una por cada vehiculo.</li>
+<li>Cada vehiculo solicita un permiso.</li>
+<li>Solo cuatro vehiculos ingresan simultaneamente.</li>
+<li>Los demas esperan.</li>
+<li>Los vehiculos salen despues de 200 milisegundos.</li>
+<li>Cada salida libera un permiso.</li>
+<li>Se genera un `ResultadoSimulacion`.</li>
+<li>Spring devuelve el resultado en formato JSON.</li>
+</ul>
+<h2>8. Uso de `AtomicInteger`</h2>
+<p>Varios hilos modifican simultaneamente la cantidad de vehiculos dentro:</p>
+<pre>
+AtomicInteger vehiculosDentro = new AtomicInteger();
+</pre>
+<p>Se utiliza <code>AtomicInteger</code> porque sus operaciones son seguras en concurrencia. Esto evita que dos hilos sobrescriban accidentalmente el mismo valor.</p>
+<p>Tambien se utiliza para calcular el maximo de vehiculos dentro:</p>
+<pre>
+maximoDentro.accumulateAndGet(ocupados, Math::max);
+</pre>
+<h2>9. Uso de `try-finally`</h2>
+<p>La salida se implementa de esta forma:</p>
+<pre>
+try {
+    Thread.sleep(TIEMPO_ESTACIONAMIENTO_MILLIS);
+    return new ResultadoVehiculo(id, milisegundosEsperados, true);
+} finally {
+    vehiculosDentro.decrementAndGet();
+    espacios.release();
+}
+</pre>
+<p>El bloque <code>finally</code> garantiza que el espacio se libere aunque ocurra un error o se interrumpa el hilo. Sin este bloque, el estacionamiento podria quedar bloqueado.</p>
+<h2>10. Endpoints disponibles</h2>
+<pre>
+GET  /health
+GET  /api
+GET  /api/simular
+GET  /api/estacionamiento/estado
+POST /api/estacionamiento/llegar/{id}
+POST /api/estacionamiento/salir/{id}
+POST /api/estacionamiento/reiniciar
+</pre>
+<h2>11. Preguntas frecuentes para la defensa</h2>
+<h3>&#194;&#191;Por que solo pueden ingresar cuatro vehiculos?</h3>
+<p>Porque el semaforo se crea con cuatro permisos. Cada vehiculo consume un permiso al entrar y lo devuelve al salir.</p>
+<h3>&#194;&#191;Que ocurre con el quinto vehiculo?</h3>
+<p>Queda bloqueado en <code>espacios.acquire()</code> hasta que otro vehiculo ejecute <code>espacios.release()</code>.</p>
+<h3>&#194;&#191;Que representa `acquire()`?</h3>
+<p>Representa la operacion <code>wait</code> del pseudocodigo.</p>
+<h3>&#194;&#191;Que representa `release()`?</h3>
+<p>Representa la operacion <code>signal</code> del pseudocodigo.</p>
+<h3>&#194;&#191;Por que el controlador no tiene toda la logica?</h3>
+<p>Porque el controlador debe encargarse de HTTP. La logica de negocio se ubica en el Service para mantener separadas las responsabilidades.</p>
+<h3>&#194;&#191;Cual es la vista en una API REST?</h3>
+<p>La vista es la respuesta JSON que Spring genera a partir de los objetos del modelo.</p>
+<h3>&#194;&#191;Que diferencia existe entre `Vehiculo` y `ResultadoVehiculo`?</h3>
+<p><code>Vehiculo</code> representa la entidad del dominio. <code>ResultadoVehiculo</code> representa el resultado de la participacion de ese vehiculo en la simulacion.</p>
+<h3>&#194;&#191;Como se verifica que la solucion funciona?</h3>
+<p>Al ejecutar la simulacion con capacidad cuatro y diez vehiculos, el valor maximo de vehiculos dentro debe ser cuatro. Esto demuestra que el semaforo controla correctamente el acceso.</p>
+<h2>12. Defensa corta</h2>
+<p>Mi microservicio controla el acceso concurrente a un estacionamiento con cuatro espacios. Utilizo un <code>Semaphore</code> con cuatro permisos. <code>acquire()</code> representa <code>wait</code> y <code>release()</code> representa <code>signal</code>. Cada vehiculo se ejecuta como una tarea independiente mediante <code>ExecutorService</code>. Los primeros cuatro vehiculos ingresan y los restantes esperan hasta que se libere un espacio. El controlador recibe las peticiones HTTP, el Service contiene la logica de concurrencia y el modelo representa los vehiculos y los resultados. Como es una API REST, la vista corresponde a las respuestas JSON generadas por Spring Boot.</p>
+</body></html>

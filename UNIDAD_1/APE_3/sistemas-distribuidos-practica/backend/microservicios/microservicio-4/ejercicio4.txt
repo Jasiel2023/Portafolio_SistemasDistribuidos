@@ -1,0 +1,41 @@
+Ejercicio 4. Cruce de vehículos — Control de acceso en una dirección
+Objetivo: Coordinar procesos que comparten un recurso y evitar que dos grupos incompatibles accedan simultáneamente.
+Situación:
+Un puente permite circular en ambos sentidos, pero solamente puede existir una dirección de circulación activa a la vez.
+Pueden existir varios vehículos cruzando hacia el norte, pero no puede haber vehículos hacia el norte y hacia el sur simultáneamente.
+Procedimiento
+Identifique el recurso compartido.
+Defina una variable que indique la dirección actual.
+Mantenga un contador de vehículos que están cruzando.
+Proteja las variables mediante un mutex.
+Un vehículo deberá verificar la dirección antes de entrar.
+Si existen vehículos en dirección contraria, deberá esperar.
+Si puede entrar, incrementará el contador correspondiente.
+Después de cruzar, disminuirá el contador.
+Cuando no queden vehículos, el puente podrá cambiar de dirección.
+Analice el problema de inanición.
+Pseudocódigo
+MUTEX mutex = 1
+direccion = NINGUNA vehiculos_norte = 0
+vehiculos_sur = 0
+PROCEDIMIENTO vehiculo_norte(id) lock(mutex)
+MIENTRAS direccion == SUR HACER esperar()
+FIN MIENTRAS
+direccion = NORTE
+vehiculos_norte = vehiculos_norte + 1 unlock(mutex)
+escribir("Vehículo ", id,
+" cruza hacia el NORTE") cruzar_puente(id)
+lock(mutex)
+vehiculos_norte = vehiculos_norte - 1
+
+
+SI vehiculos_norte == 0 ENTONCES direccion = NINGUNA
+FIN SI
+
+unlock(mutex)
+
+FIN PROCEDIMIENTO
+
+El estudiante deberá completar el procedimiento: PROCEDIMIENTO vehiculo_sur(id)
+siguiendo la misma lógica.
+Reto: modificar el algoritmo para evitar que una dirección monopolice el puente.
